@@ -34,6 +34,7 @@ class BetScannerBot:
                 api_key=self.settings.odds_api_key,
                 sports=self.settings.odds_sports,
                 regions=self.settings.odds_regions,
+                bookmakers=self.settings.odds_bookmakers,
                 markets=self.settings.odds_markets,
             )
         logger.warning("ODDS_API_KEY is missing. Using mock provider.")
@@ -89,6 +90,7 @@ class BetScannerBot:
                 recheck_delay_seconds=self.settings.recheck_delay_seconds,
                 sports=self.settings.odds_sports,
                 regions=self.settings.odds_regions,
+                bookmakers=self.settings.odds_bookmakers,
                 markets=self.settings.odds_markets,
                 provider_name=type(self.provider).__name__,
             )
