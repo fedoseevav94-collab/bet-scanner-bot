@@ -31,12 +31,14 @@ class TheOddsApiProvider:
         api_key: str,
         sports: list[str],
         regions: list[str],
+        bookmakers: list[str],
         markets: list[str],
         timeout_seconds: float = 20,
     ) -> None:
         self.api_key = api_key
         self.sports = sports
         self.regions = regions
+        self.bookmakers = bookmakers
         self.markets = markets
         self.timeout_seconds = timeout_seconds
 
@@ -45,18 +47,27 @@ class TheOddsApiProvider:
 
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             for sport in self.sports:
-                events.extend(await self._fetch_sport(client, sport))
+                try:
+                    events.extend(await self._fetch_sport(client, sport))
+                except httpx.HTTPStatusError as exc:
+                    logger.warning("Odds API request failed for sport=%s: %s", sport, exc)
+                except httpx.HTTPError as exc:
+                    logger.warning("Odds API network error for sport=%s: %s", sport, exc)
 
         return events
 
     async def _fetch_sport(self, client: httpx.AsyncClient, sport: str) -> list[EventOdds]:
         params = {
             "apiKey": self.api_key,
-            "regions": ",".join(self.regions),
             "markets": ",".join(self.markets),
             "oddsFormat": "decimal",
             "dateFormat": "iso",
         }
+
+        if self.bookmakers:
+            params["bookmakers"] = ",".join(self.bookmakers)
+        else:
+            params["regions"] = ",".join(self.regions)
 
         url = f"{self.BASE_URL}/sports/{sport}/odds/"
         response = await client.get(url, params=params)
