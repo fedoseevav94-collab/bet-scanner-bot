@@ -1,1 +1,1 @@
-worker: python -m bet_scanner.main
+worker: python run.py
