@@ -8,6 +8,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src ./src
-ENV PYTHONPATH=/app/src
+COPY run.py ./run.py
 
-CMD ["python", "-m", "bet_scanner.main"]
+CMD ["python", "run.py"]
