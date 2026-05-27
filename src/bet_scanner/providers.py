@@ -6,6 +6,13 @@ from typing import Any, Protocol
 
 import httpx
 
+from .errors import (
+    OddsApiAuthError,
+    OddsApiNetworkError,
+    OddsApiQuotaError,
+    OddsApiRequestError,
+    OddsApiSportUnavailableError,
+)
 from .models import EventOdds, OutcomeOdd
 
 logger = logging.getLogger(__name__)
@@ -47,12 +54,7 @@ class TheOddsApiProvider:
 
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             for sport in self.sports:
-                try:
-                    events.extend(await self._fetch_sport(client, sport))
-                except httpx.HTTPStatusError as exc:
-                    logger.warning("Odds API request failed for sport=%s: %s", sport, exc)
-                except httpx.HTTPError as exc:
-                    logger.warning("Odds API network error for sport=%s: %s", sport, exc)
+                events.extend(await self._fetch_sport(client, sport))
 
         return events
 
@@ -70,7 +72,11 @@ class TheOddsApiProvider:
             params["regions"] = ",".join(self.regions)
 
         url = f"{self.BASE_URL}/sports/{sport}/odds/"
-        response = await client.get(url, params=params)
+        try:
+            response = await client.get(url, params=params)
+        except httpx.HTTPError as exc:
+            logger.warning("Odds API network error for sport=%s: %s", sport, exc)
+            raise OddsApiNetworkError from exc
 
         remaining = response.headers.get("x-requests-remaining")
         used = response.headers.get("x-requests-used")
@@ -84,7 +90,15 @@ class TheOddsApiProvider:
             last,
         )
 
-        response.raise_for_status()
+        if response.status_code in {401, 403}:
+            raise OddsApiAuthError(response.text)
+        if response.status_code == 429:
+            raise OddsApiQuotaError(response.text)
+        if response.status_code == 404:
+            raise OddsApiSportUnavailableError(f"Sport is unavailable: {sport}")
+        if response.status_code >= 400:
+            raise OddsApiRequestError(f"{response.status_code}: {response.text}")
+
         payload = response.json()
         return self._parse_payload(payload)
 
