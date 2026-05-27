@@ -16,6 +16,7 @@ class Settings:
     telegram_bot_token: str
     odds_api_key: str | None
     odds_regions: list[str]
+    odds_bookmakers: list[str]
     odds_sports: list[str]
     odds_markets: list[str]
     min_profit_percent: float
@@ -38,6 +39,7 @@ class Settings:
             telegram_bot_token=token,
             odds_api_key=os.getenv("ODDS_API_KEY", "").strip() or None,
             odds_regions=_split_csv(os.getenv("ODDS_REGIONS", "eu,uk")),
+            odds_bookmakers=_split_csv(os.getenv("ODDS_BOOKMAKERS", "")),
             odds_sports=_split_csv(os.getenv("ODDS_SPORTS", "soccer_epl,soccer_spain_la_liga")),
             odds_markets=_split_csv(os.getenv("ODDS_MARKETS", "h2h")),
             min_profit_percent=float(os.getenv("MIN_PROFIT_PERCENT", "1.5")),
