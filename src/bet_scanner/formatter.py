@@ -54,9 +54,11 @@ def format_settings(
     recheck_delay_seconds: int,
     sports: list[str],
     regions: list[str],
+    bookmakers: list[str],
     markets: list[str],
     provider_name: str,
 ) -> str:
+    bookmaker_text = ", ".join(bookmakers) if bookmakers else "не заданы, используются регионы"
     return "\n".join(
         [
             "⚙️ Текущие настройки",
@@ -64,6 +66,7 @@ def format_settings(
             f"Источник: {provider_name}",
             f"Спорт: {', '.join(sports)}",
             f"Регионы БК: {', '.join(regions)}",
+            f"Конкретные БК: {bookmaker_text}",
             f"Рынки: {', '.join(markets)}",
             f"Мин. доходность: {min_profit_percent:.2f}%",
             f"Банк: {bank:.2f} ₽",
