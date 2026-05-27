@@ -74,3 +74,32 @@ def format_settings(
             f"Повторная проверка: через {recheck_delay_seconds} сек.",
         ]
     )
+
+
+def format_status(
+    provider_name: str,
+    sports: list[str],
+    markets: list[str],
+    regions: list[str],
+    bookmakers: list[str],
+    min_profit_percent: float,
+    scan_interval_seconds: int,
+) -> str:
+    bookmaker_text = ", ".join(bookmakers) if bookmakers else "не ограничены"
+    return "\n".join(
+        [
+            "📊 Статус сканера",
+            "",
+            f"Провайдер: {provider_name}",
+            f"Спорты: {', '.join(sports)}",
+            f"Рынки: {', '.join(markets)}",
+            f"Регионы: {', '.join(regions)}",
+            f"Букмекеры: {bookmaker_text}",
+            f"Мин. доходность: {min_profit_percent:.2f}%",
+            f"Интервал сканирования: {scan_interval_seconds} сек.",
+        ]
+    )
+
+
+def format_sports(sports: list[str]) -> str:
+    return "\n".join(["🏟 Текущие виды спорта", "", *[f"• {sport}" for sport in sports]])

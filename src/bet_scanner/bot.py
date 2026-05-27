@@ -7,7 +7,8 @@ from telegram import Update
 from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes
 
 from .config import Settings
-from .formatter import format_settings, format_signal
+from .errors import OddsProviderError
+from .formatter import format_settings, format_signal, format_sports, format_status
 from .models import ArbitrageSignal
 from .providers import MockOddsProvider, OddsProvider, TheOddsApiProvider
 from .scanner import ArbitrageScanner
@@ -47,6 +48,8 @@ class BetScannerBot:
         app.add_handler(CommandHandler("help", self.help))
         app.add_handler(CommandHandler("scan", self.scan_once))
         app.add_handler(CommandHandler("settings", self.show_settings))
+        app.add_handler(CommandHandler("status", self.status))
+        app.add_handler(CommandHandler("sports", self.sports))
 
         return app
 
@@ -63,6 +66,8 @@ class BetScannerBot:
                 "Бот-сканер запущен.\n\n"
                 "Команды:\n"
                 "/scan — проверить вилки сейчас\n"
+                "/status — статус источника и фильтров\n"
+                "/sports — выбранные виды спорта\n"
                 "/settings — настройки\n"
                 "/help — помощь\n\n"
                 "Бот не делает ставки автоматически, только отправляет аналитические сигналы."
@@ -96,6 +101,28 @@ class BetScannerBot:
             )
         )
 
+    async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
+
+        await update.message.reply_text(
+            format_status(
+                provider_name=self._provider_display_name(),
+                sports=self.settings.odds_sports,
+                markets=self.settings.odds_markets,
+                regions=self.settings.odds_regions,
+                bookmakers=self.settings.odds_bookmakers,
+                min_profit_percent=self.settings.min_profit_percent,
+                scan_interval_seconds=self.settings.scan_interval_seconds,
+            )
+        )
+
+    async def sports(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
+
+        await update.message.reply_text(format_sports(self.settings.odds_sports))
+
     async def scan_once(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if update.effective_chat:
             self.active_chat_ids.add(update.effective_chat.id)
@@ -103,7 +130,12 @@ class BetScannerBot:
         if update.message:
             await update.message.reply_text("Сканирую коэффициенты...")
 
-        signals = await self._find_confirmed_signals()
+        try:
+            signals = await self._find_confirmed_signals()
+        except OddsProviderError as exc:
+            if update.message:
+                await update.message.reply_text(exc.user_message)
+            return
 
         if not signals:
             if update.message:
@@ -158,5 +190,14 @@ class BetScannerBot:
 
             except asyncio.CancelledError:
                 raise
+            except OddsProviderError as exc:
+                logger.warning("Periodic scan provider error: %s", exc.user_message)
+                for chat_id in self.active_chat_ids:
+                    await app.bot.send_message(chat_id=chat_id, text=exc.user_message)
             except Exception:
                 logger.exception("Periodic scan failed")
+
+    def _provider_display_name(self) -> str:
+        if isinstance(self.provider, MockOddsProvider):
+            return "mock provider"
+        return "The Odds API"
